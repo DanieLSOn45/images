@@ -1,0 +1,33 @@
+from flask import Flask, request, send_file
+from werkzeug.utils import secure_filename  # Импорт функции secure_filename
+import sqlite3
+import os
+
+app = Flask(__name__)
+DATABASE = 'image_db.sqlite'
+
+def get_db():
+    db = sqlite3.connect(DATABASE)
+    return db
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    file = request.files['image']
+    filename = secure_filename(file.filename)
+    file.save(os.path.join('images', filename))
+    db = get_db()
+    db.execute("INSERT INTO images (filename) VALUES (?)", (filename))  # Удалена лишняя запятая
+    db.commit()
+    return 'Image Uploaded Successfully'
+
+@app.route('/image/<int:image_id>')
+def serve_image(image_id):
+    db = get_db()
+    cursor = db.execute("SELECT filename FROM images WHERE id=?", (image_id,))
+    data = cursor.fetchone()
+    if data is None:
+        return 'Image Not Found', 404
+    return send_file(os.path.join('images', data[0]))
+
+if __name__ == '__main__':
+    app.run(debug=True)
